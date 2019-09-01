@@ -26,6 +26,10 @@ dependencies:
   cloud_firestore:
   firebase_auth:
   firebase_database:
+  rxdart:
+  google_maps_flutter:
+  geoflutterfire:
+  location:
 
 dev_dependencies:
   flutter_test:
