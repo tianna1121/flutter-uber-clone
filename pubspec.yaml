@@ -33,6 +33,13 @@ dependencies:
   geolocator:
   google_maps_webservice:
   http:
+  uuid:
+  provider:
+  geocoder:
+  flutter_google_places:
+  flutter_spinkit:
+  get_it:
+  shared_preferences:
 
 dev_dependencies:
   flutter_test:

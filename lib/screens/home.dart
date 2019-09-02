@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import '../requests/google_maps_requests.dart';
-import '../utils/main.dart';
+import 'package:provider/provider.dart';
+import '../states/app_state.dart';
 
 class MyHomePage extends StatefulWidget {
   final String title;
@@ -25,24 +24,11 @@ class Map extends StatefulWidget {
 }
 
 class _MapState extends State<Map> {
-  GoogleMapController mapController;
-  GoogleMapsServices _googleMapsServices = GoogleMapsServices();
-  TextEditingController locationController = TextEditingController();
-  TextEditingController destinationController = TextEditingController();
-  static LatLng _initialPostion;
-  LatLng _lastPostion = _initialPostion;
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polyLines = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _getUserLocation();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return _initialPostion == null
+    final appState = Provider.of<AppState>(context);
+
+    return appState.initialPostion == null
         ? Container(
             alignment: Alignment.center,
             child: Center(
@@ -53,30 +39,17 @@ class _MapState extends State<Map> {
             children: <Widget>[
               GoogleMap(
                 initialCameraPosition: CameraPosition(
-                  target: _initialPostion,
+                  target: appState.initialPostion,
                   zoom: 10.0,
                 ),
-                onMapCreated: onCreated,
+                onMapCreated: appState.onCreated,
                 myLocationEnabled: true,
                 mapType: MapType.normal,
                 compassEnabled: true,
-                markers: _markers,
-                onCameraMove: _onCameraMove,
-                polylines: _polyLines,
+                markers: appState.markers,
+                onCameraMove: appState.onCameraMove,
+                polylines: appState.polylines,
               ),
-              // Positioned(
-              //   top: 50.0,
-              //   right: 15.0,
-              //   child: FloatingActionButton(
-              //     onPressed: _onAddMarkerPressed,
-              //     tooltip: "add marker",
-              //     backgroundColor: black,
-              //     child: Icon(
-              //       Icons.add_location,
-              //       color: white,
-              //     ),
-              //   ),
-              //),
               Positioned(
                 top: 50.0,
                 right: 15.0,
@@ -134,10 +107,10 @@ class _MapState extends State<Map> {
                   ),
                   child: TextField(
                     cursorColor: Colors.black,
-                    controller: destinationController,
+                    controller: appState.destinationController,
                     textInputAction: TextInputAction.go,
                     onSubmitted: (value) {
-                      sendRequest(value);
+                      appState.sendRequest(value);
                     },
                     decoration: InputDecoration(
                         icon: Container(
@@ -157,127 +130,5 @@ class _MapState extends State<Map> {
               )
             ],
           );
-  }
-
-  void _onCameraMove(CameraPosition position) {
-    setState(() {
-      _lastPostion = position.target;
-    });
-  }
-
-  void _addMarker(LatLng location, String address) {
-    setState(() {
-      _markers.add(Marker(
-          markerId: MarkerId(_lastPostion.toString()),
-          position: location,
-          infoWindow: InfoWindow(title: address, snippet: "Good place"),
-          icon: BitmapDescriptor.defaultMarker));
-    });
-  }
-
-  void createRoute(String encodedPoly) {
-    setState(() {
-      _polyLines.add(
-        Polyline(
-            polylineId: PolylineId(_lastPostion.toString()),
-            width: 10,
-            points: convertToLatLng(decodePoly(encodedPoly)),
-            color: Colors.black),
-      );
-    });
-  }
-
-  void onCreated(GoogleMapController controller) {
-    setState(() {
-      mapController = controller;
-    });
-  }
-
-  void _onAddMarkerPressed() {
-    setState(() {
-      _markers.add(
-        Marker(
-            markerId: MarkerId(
-              _lastPostion.toString(),
-            ),
-            position: _lastPostion,
-            infoWindow:
-                InfoWindow(title: "Remeber here", snippet: "Good place"),
-            icon: BitmapDescriptor.defaultMarker),
-      );
-    });
-  }
-
-  // * this method will convert list of doubles into LatLng
-  List<LatLng> convertToLatLng(List points) {
-    List<LatLng> result = <LatLng>[];
-
-    for (int i = 0; i < points.length; i++) {
-      if (i % 2 != 0) {
-        result.add(LatLng(points[i - 1], points[i]));
-      }
-    }
-
-    return result;
-  }
-
-  List decodePoly(String poly) {
-    var list = poly.codeUnits;
-    var lList = new List();
-    int index = 0;
-    int len = poly.length;
-    int c = 0;
-
-    // * repeating until all attributes are decoded
-    do {
-      var shift = 0;
-      int result = 0;
-
-      // * for decoding value of one attribute
-      do {
-        c = list[index] - 63;
-        result != (c & 0x1F) << (shift * 5);
-        index++;
-        shift++;
-      } while (c >= 32);
-
-      // * if value is negtive then bitwise not the value
-      if (result & 1 == 1) {
-        result = ~result;
-      }
-      var results1 = (result >> 1) * 0.00001;
-      lList.add(results1);
-    } while (index < len);
-
-    // * adding to previous value as done in encoding
-    for (var i = 2; i < lList.length; i++) {
-      lList[i] += lList[i - 2];
-    }
-    print(lList.toString());
-
-    return lList;
-  }
-
-  void _getUserLocation() async {
-    Position position = await Geolocator()
-        .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    List<Placemark> placemark = await Geolocator()
-        .placemarkFromCoordinates(position.latitude, position.longitude);
-    setState(() {
-      _initialPostion = LatLng(position.latitude, position.longitude);
-      locationController.text = placemark[0].name;
-    });
-  }
-
-  void sendRequest(String intendedLocation) async {
-    List<Placemark> placemark =
-        await Geolocator().placemarkFromAddress(intendedLocation);
-    double latitude = placemark[0].position.latitude;
-    double longtitude = placemark[0].position.longitude;
-    LatLng destination = LatLng(latitude, longtitude);
-    _addMarker(destination, intendedLocation);
-    String route = await _googleMapsServices.getRouteCoordinates(
-        _initialPostion, destination);
-    createRoute(route);
   }
 }
