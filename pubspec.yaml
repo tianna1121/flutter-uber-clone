@@ -30,6 +30,9 @@ dependencies:
   google_maps_flutter:
   geoflutterfire:
   location:
+  geolocator:
+  google_maps_webservice:
+  http:
 
 dev_dependencies:
   flutter_test:
